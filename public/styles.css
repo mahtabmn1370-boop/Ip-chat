@@ -23,10 +23,10 @@ body {
     background: linear-gradient(135deg, #0a0a1f 0%, #1a0033 50%, #0a0a1f 100%);
     color: var(--text);
     min-height: 100vh;
-    overflow: hidden;
+    overflow-x: hidden; /* only horizontal block */
+    overflow-y: auto;   /* allow vertical scroll */
     background-attachment: fixed;
 }
-
 /* HEADER */
 .header {
     background: rgba(10, 10, 31, 0.97);
