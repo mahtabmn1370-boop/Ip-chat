@@ -245,7 +245,7 @@ function copyRoomLink() {
             showToast('❌ Failed to copy link');
         });
 }
-}
+
 
 function showClosedModal(reason) {
     document.getElementById('closed-reason').innerHTML = reason || 'Room has been permanently deleted.';
