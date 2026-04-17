@@ -1,4 +1,4 @@
-/* public/styles.css - Ultra Premium Modern UI for Anonymous Chat */
+/* public/styles.css - Ultra Premium Modern UI for Anonymous Chat (Android Optimized) */
 
 :root {
     --primary: #00f5ff;
@@ -39,9 +39,15 @@ body {
     font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
     background: var(--bg);
     color: var(--text);
-    min-height: 100vh;
+    min-height: 100dvh;           /* Android + modern browsers ke liye best */
     overflow: hidden;
     transition: background 0.6s ease, color 0.6s ease;
+}
+
+/* Safe fallback for older browsers */
+html, body {
+    height: 100vh;
+    height: 100dvh;
 }
 
 /* HEADER */
@@ -136,7 +142,7 @@ body {
 
 /* HOME VIEW */
 #home-view {
-    min-height: calc(100vh - 78px);
+    min-height: calc(100dvh - 78px);   /* Dynamic height */
     display: flex;
     align-items: center;
     justify-content: center;
@@ -243,10 +249,10 @@ body {
     box-shadow: 0 30px 60px rgba(0, 245, 255, 0.5);
 }
 
-/* CHAT LAYOUT */
+/* CHAT LAYOUT - Android Optimized */
 .chat-layout {
     display: flex;
-    height: calc(100vh - 78px);
+    height: calc(100dvh - 78px);   /* Dynamic full screen */
     overflow: hidden;
 }
 
@@ -324,6 +330,7 @@ body {
     display: flex;
     flex-direction: column;
     background: #0c0c22;
+    min-height: 0;   /* Important for flex child scrolling */
 }
 
 .messages-container {
@@ -337,6 +344,8 @@ body {
                 url('https://picsum.photos/id/1015/2000/1200') center/cover no-repeat;
     scroll-behavior: smooth;
 }
+
+/* Typing indicator removed completely */
 
 .message {
     max-width: 76%;
@@ -403,6 +412,7 @@ body {
     background: var(--card);
     border-top: 1px solid var(--border);
     backdrop-filter: blur(16px);
+    flex-shrink: 0;   /* Input area fixed rahe */
 }
 
 #message-form {
@@ -462,7 +472,7 @@ body {
     box-shadow: 0 15px 40px rgba(0, 245, 255, 0.6);
 }
 
-/* Toast & Modals */
+/* Toast */
 .toast {
     position: fixed;
     bottom: 40px;
@@ -491,7 +501,7 @@ body {
     border-radius: 20px;
 }
 
-/* Mobile Responsive */
+/* Mobile Responsive (Android better fit) */
 @media (max-width: 768px) {
     .chat-layout {
         flex-direction: column;
@@ -501,5 +511,9 @@ body {
         max-height: 220px;
         border-right: none;
         border-bottom: 1px solid var(--border);
+    }
+    
+    #home-view, .chat-layout {
+        height: calc(100dvh - 70px);   /* Smaller header on mobile */
     }
     }
