@@ -2,24 +2,22 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>IP Chat Name</title>
     <link rel="stylesheet" href="styles.css">
     <script src="/socket.io/socket.io.js"></script>
 </head>
-<body data-theme="dark">
+<body>
     <header class="header">
         <div class="logo">
             <span class="logo-icon">🔌</span>
             <h1>IP Chat Name</h1>
         </div>
-        <div class="header-right">
-            <button onclick="toggleTheme()" class="theme-btn" id="theme-toggle">🌙</button>
-            <div id="header-room-info" class="room-info hidden">
-                <span id="room-id-display" class="room-id"></span>
-                <button onclick="copyRoomLink()" class="copy-btn">Share</button>
-                <button onclick="exitRoom()" class="exit-btn">Exit</button>
-            </div>
+        <div id="header-room-info" class="room-info hidden">
+            <span class="room-label">Room</span>
+            <span id="room-id-display" class="room-id"></span>
+            <button onclick="copyRoomLink()" class="copy-btn">📋 Share</button>
+            <button onclick="exitRoom()" class="exit-btn">Exit Room</button>
         </div>
     </header>
 
@@ -27,39 +25,46 @@
     <div id="home-view" class="view active">
         <div class="home-container">
             <div class="hero">
-                <h2>Secure Chat Rooms</h2>
-                <p>Private • Group • Auto-expiry • Media</p>
+                <div class="hero-badge">PRIVATE • GROUP • EXPIRY • MEDIA</div>
+                <h2 class="hero-title">Chat That You Control</h2>
+                <p class="hero-subtitle">Create private or group chat.<br>Set expiry time. Exit only via button.</p>
             </div>
+
             <div class="card">
                 <div class="input-group">
-                    <label>Your Nickname</label>
+                    <label for="nickname-input">Your nickname</label>
                     <input type="text" id="nickname-input" placeholder="e.g. Alex" maxlength="20">
                 </div>
 
                 <div class="create-options">
-                    <button onclick="createRoom(false)" class="btn-primary">Private Chat (2 users)</button>
-                    <button onclick="createRoom(true)" class="btn-primary">Create Group</button>
+                    <button onclick="createRoom(false)" class="btn-primary private-btn">
+                        👥 Private Chat (2 users)
+                    </button>
+                    <button onclick="createRoom(true)" class="btn-primary group-btn">
+                        👥 Create Group
+                    </button>
                 </div>
 
-                <div class="expiry-selector">
-                    <label>Room expires after</label>
-                    <select id="expiry-time">
+                <div class="expiry-selector" id="expiry-selector">
+                    <label>Keep room open for</label>
+                    <select id="expiry-time" class="expiry-select">
                         <option value="15">15 minutes</option>
                         <option value="30" selected>30 minutes</option>
                         <option value="60">1 hour</option>
                         <option value="180">3 hours</option>
                         <option value="360">6 hours</option>
+                        <option value="720">12 hours</option>
                         <option value="1440">24 hours</option>
                     </select>
                 </div>
 
-                <div class="divider">OR</div>
+                <div class="divider"><span>OR</span></div>
 
                 <div class="input-group">
-                    <label>Room ID</label>
-                    <div class="join-wrapper">
-                        <input type="text" id="room-code-input" placeholder="ABC12345" maxlength="8" style="text-transform:uppercase">
-                        <button onclick="joinRoomFromHome()" class="btn-join">Join</button>
+                    <label for="room-code-input">Enter Room ID</label>
+                    <div class="join-input-wrapper">
+                        <input type="text" id="room-code-input" placeholder="ABC12345" maxlength="8" style="text-transform:uppercase;">
+                        <button onclick="joinRoomFromHome()" class="btn-secondary">Join →</button>
                     </div>
                 </div>
             </div>
@@ -69,26 +74,28 @@
     <!-- Chat View -->
     <div id="chat-view" class="view hidden">
         <div class="chat-layout">
-            <!-- Participants Sidebar -->
             <div class="participants-sidebar">
-                <div class="sidebar-header">
-                    <h3>Participants <span id="participant-count" class="count-badge"></span></h3>
-                    <span id="online-status" class="online-status">● Online</span>
-                </div>
+                <h3 class="sidebar-title">Participants <span id="participant-count" class="count-badge">1/2</span></h3>
                 <div id="participants-list" class="participants-list"></div>
+                <div id="waiting-banner" class="waiting-banner">
+                    <div class="spinner"></div>
+                    <p>Waiting for others...</p>
+                </div>
             </div>
 
-            <!-- Main Chat Area -->
             <div class="chat-main">
-                <div id="chat-messages" class="messages-container"></div>
-                
-                <div id="typing-indicator" class="typing-indicator">Someone is typing...</div>
+                <div id="chat-messages" class="messages-container">
+                    <div id="empty-chat" class="empty-state">
+                        <div class="empty-icon">💬</div>
+                        <h3>Start the conversation</h3>
+                    </div>
+                </div>
 
                 <div class="message-input-area">
                     <form id="message-form" onsubmit="sendMessage(event)">
-                        <input type="text" id="message-input" placeholder="Type a message..." autocomplete="off" oninput="handleTyping()">
-                        <button type="button" onclick="triggerImageUpload()" class="attach-btn">📸</button>
-                        <button type="button" onclick="startVoiceRecording()" class="attach-btn">🎤</button>
+                        <input type="text" id="message-input" placeholder="Type a message..." autocomplete="off">
+                        <button type="button" onclick="triggerImageUpload()" class="attach-btn" title="Send Image">📸</button>
+                        <button type="button" onclick="startVoiceRecording()" class="attach-btn" title="Record Voice">🎤</button>
                         <button type="submit" class="send-btn">Send</button>
                     </form>
                 </div>
@@ -96,15 +103,17 @@
         </div>
     </div>
 
-    <!-- Hidden File Input -->
+    <!-- Hidden file input -->
     <input type="file" id="file-upload" accept="image/*,audio/*" style="display:none" onchange="handleFileSelect(event)">
 
     <!-- Modals -->
     <div id="join-modal" class="modal hidden">
         <div class="modal-content">
-            <h2>Join Room <span id="modal-room-id" class="room-id"></span></h2>
-            <input type="text" id="modal-nickname" placeholder="Your nickname" maxlength="20">
-            <div class="modal-buttons">
+            <h2>Joining Room <span id="modal-room-id"></span></h2>
+            <div class="input-group">
+                <input type="text" id="modal-nickname" placeholder="Your nickname" maxlength="20">
+            </div>
+            <div class="modal-actions">
                 <button onclick="cancelJoinModal()" class="btn-secondary">Cancel</button>
                 <button onclick="confirmJoinFromModal()" class="btn-primary">Join</button>
             </div>
@@ -112,7 +121,7 @@
     </div>
 
     <div id="closed-modal" class="modal hidden">
-        <div class="modal-content">
+        <div class="modal-content error-modal">
             <h2>Room Closed</h2>
             <p id="closed-reason"></p>
             <button onclick="goBackToHome()" class="btn-primary">Back to Home</button>
@@ -123,4 +132,4 @@
 
     <script src="script.js"></script>
 </body>
-</html>
+    </html>
