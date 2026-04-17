@@ -98,10 +98,13 @@ function cancelJoinModal() {
 }
 
 function switchToChatView() {
-    document.getElementById('home-view').classList.add('hidden');
-    document.getElementById('chat-view').classList.remove('hidden');
+    document.getElementById('home-view').classList.remove('active');
+    document.getElementById('chat-view').classList.add('active');
     document.getElementById('header-room-info').classList.remove('hidden');
     document.getElementById('room-id-display').textContent = currentRoomId;
+    
+    // Smooth scroll to top
+    window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 function renderParticipants() {
