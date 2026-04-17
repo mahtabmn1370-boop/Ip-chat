@@ -107,21 +107,31 @@ function switchToChatView() {
 function renderParticipants() {
     const container = document.getElementById('participants-list');
     container.innerHTML = '';
-    document.getElementById('participant-count').textContent = `\( {participants.length} \){isGroup ? '+' : '/2'}`;
+
+    // ✅ FIXED COUNT DISPLAY
+    document.getElementById('participant-count').textContent =
+        `${participants.length}${isGroup ? '+' : '/2'}`;
 
     participants.forEach(user => {
         const isMe = user.nickname === myNickname;
+
         const div = document.createElement('div');
         div.className = `participant ${isMe ? 'me' : ''}`;
+
         div.innerHTML = `
             <div class="participant-info">
-                <div class="participant-name">${isMe ? '👤 You' : user.nickname}</div>
-                <div class="participant-ip">IP: ${user.ip}</div>
+                <div class="participant-name">
+                    ${isMe ? '👤 You' : user.nickname}
+                </div>
+                <div class="participant-ip">
+                    IP: ${user.ip}
+                </div>
             </div>
         `;
+
         container.appendChild(div);
     });
-}
+    }
 
 function renderMessages() {
     const container = document.getElementById('chat-messages');
@@ -218,8 +228,23 @@ function exitRoom() {
 }
 
 function copyRoomLink() {
-    const link = `\( {window.location.origin}?room= \){currentRoomId}`;
-    navigator.clipboard.writeText(link).then(() => showToast('✅ Link copied!'));
+    // check room exists
+    if (!currentRoomId) {
+        return showToast('❌ No room to share');
+    }
+
+    // correct template string
+    const link = `${window.location.origin}?room=${currentRoomId}`;
+
+    // copy to clipboard
+    navigator.clipboard.writeText(link)
+        .then(() => {
+            showToast('✅ Link copied!');
+        })
+        .catch(() => {
+            showToast('❌ Failed to copy link');
+        });
+}
 }
 
 function showClosedModal(reason) {
