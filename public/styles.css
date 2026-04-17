@@ -23,7 +23,7 @@ body {
     background: linear-gradient(135deg, #0a0a1f 0%, #1a0033 50%, #0a0a1f 100%);
     color: var(--text);
     min-height: 100vh;
-    overflow: hidden;
+    overflow: auto;
     background-attachment: fixed;
 }
 
