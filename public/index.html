@@ -7,20 +7,16 @@
     <link rel="stylesheet" href="styles.css">
     <script src="/socket.io/socket.io.js"></script>
 </head>
-<body data-theme="dark">
+<body>
     <header class="header">
         <div class="logo">
             <span class="logo-icon">🔌</span>
             <h1>IP Chat Name</h1>
         </div>
-        <div class="header-right">
-            <button onclick="toggleTheme()" class="theme-btn" title="Toggle Theme">🌙</button>
-            <div id="header-room-info" class="room-info hidden">
-                <span class="room-label">Room</span>
-                <span id="room-id-display" class="room-id"></span>
-                <button onclick="copyRoomLink()" class="copy-btn">📋 Share</button>
-                <button onclick="exitRoom()" class="exit-btn">Exit Room</button>
-            </div>
+        <div id="header-room-info" class="room-info hidden">
+            <span class="room-label">Room</span>
+            <span id="room-id-display" class="room-id"></span>
+            <button onclick="copyRoomLink()" class="copy-btn">📋 Share</button>
         </div>
     </header>
 
@@ -28,9 +24,9 @@
     <div id="home-view" class="view active">
         <div class="home-container">
             <div class="hero">
-                <div class="hero-badge">PRIVATE • 2 USERS • IP TRACKED</div>
-                <h2 class="hero-title">Chat That You Control</h2>
-                <p class="hero-subtitle">Create private room • Only Exit button deletes room</p>
+                <div class="hero-badge">SECURE • 2 USERS • IMAGES & VOICE</div>
+                <h2 class="hero-title">Private Chat.<br>Now with Media.</h2>
+                <p class="hero-subtitle">Create or join a room.<br>Only 2 people. Room deletes forever when anyone leaves.</p>
             </div>
 
             <div class="card">
@@ -39,18 +35,7 @@
                     <input type="text" id="nickname-input" placeholder="e.g. Alex" maxlength="20">
                 </div>
 
-                <div class="create-options">
-                    <button onclick="createRoom()" class="btn-primary">Create Private Room (2 users)</button>
-                </div>
-
-                <div class="expiry-selector">
-                    <label>Keep room open for</label>
-                    <select id="expiry-time">
-                        <option value="30" selected>30 minutes</option>
-                        <option value="60">1 hour</option>
-                        <option value="180">3 hours</option>
-                    </select>
-                </div>
+                <button onclick="createRoom()" class="btn-primary">🚀 Create New Room</button>
 
                 <div class="divider"><span>OR</span></div>
 
@@ -71,24 +56,26 @@
             <div class="participants-sidebar">
                 <h3 class="sidebar-title">Participants <span id="participant-count" class="count-badge">1/2</span></h3>
                 <div id="participants-list" class="participants-list"></div>
+                <div id="waiting-banner" class="waiting-banner">
+                    <div class="spinner"></div>
+                    <p>Waiting for friend...</p>
+                    <small>Share the room link</small>
+                </div>
             </div>
 
             <div class="chat-main">
                 <div id="chat-messages" class="messages-container">
                     <div id="empty-chat" class="empty-state">
-                        <h3>Start the conversation</h3>
+                        <div class="empty-icon">💬</div>
+                        <h3>Start chatting</h3>
                     </div>
-                </div>
-
-                <div id="typing-indicator" class="typing-indicator hidden">
-                    <span id="typing-name"></span> is typing...
                 </div>
 
                 <div class="message-input-area">
                     <form id="message-form" onsubmit="sendMessage(event)">
-                        <input type="text" id="message-input" placeholder="Type a message..." autocomplete="off"
-                               onkeyup="handleTyping(event)">
-                        <button type="button" onclick="triggerFileUpload()" class="attach-btn">📎</button>
+                        <input type="text" id="message-input" placeholder="Type a message..." autocomplete="off">
+                        <button type="button" onclick="triggerImageUpload()" class="attach-btn" title="Send Image">📸</button>
+                        <button type="button" onclick="startVoiceRecording()" class="attach-btn" title="Record Voice">🎤</button>
                         <button type="submit" class="send-btn">Send</button>
                     </form>
                 </div>
@@ -96,13 +83,16 @@
         </div>
     </div>
 
-    <input type="file" id="file-upload" accept="image/*,audio/*,video/*" style="display:none" onchange="handleFileSelect(event)">
+    <!-- Hidden file input -->
+    <input type="file" id="file-upload" accept="image/*,audio/*" style="display:none" onchange="handleFileSelect(event)">
 
     <!-- Modals -->
     <div id="join-modal" class="modal hidden">
         <div class="modal-content">
-            <h2>Joining Room <span id="modal-room-id"></span></h2>
-            <input type="text" id="modal-nickname" placeholder="Your nickname" maxlength="20">
+            <h2>Joining Room <span id="modal-room-id" class="modal-room-id"></span></h2>
+            <div class="input-group">
+                <input type="text" id="modal-nickname" placeholder="Your nickname" maxlength="20">
+            </div>
             <div class="modal-actions">
                 <button onclick="cancelJoinModal()" class="btn-secondary">Cancel</button>
                 <button onclick="confirmJoinFromModal()" class="btn-primary">Join</button>
@@ -122,4 +112,4 @@
 
     <script src="script.js"></script>
 </body>
-                                                        </html>
+</html>
