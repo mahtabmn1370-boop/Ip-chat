@@ -1,159 +1,171 @@
-// server.js - IP Chat Name (Only Exit Button Deletes Room)
+// server.js - Secure version with image & voice support
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server, { cors: { origin: "*" } });
 
+// Security middleware
+app.use(helmet({
+  contentSecurityPolicy: false // Adjust if needed for your UI
+}));
+
+// Rate limiting (prevents spam)
+const limiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 30, // max 30 requests per minute per IP
+  message: { msg: 'Too many requests, please slow down' }
+});
+app.use(limiter);
+
+// Serve static files
 app.use(express.static('public'));
-app.use('/uploads', express.static('uploads'));
+app.use('/uploads', express.static('public/uploads')); // Serve uploaded files
 
-// Create uploads folder
-const uploadDir = path.join(__dirname, 'uploads');
-if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir);
+// Create uploads folder if not exists
+const uploadDir = path.join(__dirname, 'public/uploads');
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
 
+// Multer config - Secure file upload
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, 'uploads'),
-  filename: (req, file, cb) => cb(null, Date.now() + '-' + file.originalname)
-});
-const upload = multer({ storage });
-
-// File Upload (Image / Audio / Video)
-app.post('/upload', upload.single('file'), (req, res) => {
-  if (!req.file) return res.json({ success: false });
-  const type = req.file.mimetype.startsWith('image') ? 'image' :
-               req.file.mimetype.startsWith('audio') ? 'audio' : 'video';
-  res.json({ success: true, url: `/uploads/${req.file.filename}`, type });
+  destination: uploadDir,
+  filename: (req, file, cb) => {
+    const uniqueName = Date.now() + '-' + Math.round(Math.random() * 1E9) + path.extname(file.originalname);
+    cb(null, uniqueName);
+  }
 });
 
-let rooms = {};
-let deletedRooms = new Set();
+const fileFilter = (req, file, cb) => {
+  const allowedTypes = /jpeg|jpg|png|gif|webp|mp3|wav|ogg/;
+  const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+  const mimetype = allowedTypes.test(file.mimetype);
+  if (extname && mimetype) {
+    return cb(null, true);
+  }
+  cb(new Error('Only images (jpg,png,gif,webp) and audio (mp3,wav,ogg) allowed'));
+};
+
+const upload = multer({
+  storage: storage,
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB max
+  fileFilter: fileFilter
+});
+
+// Socket.IO with higher buffer for safety (but we avoid sending large files via socket)
+const io = new Server(server, {
+  cors: { origin: "*" },
+  maxHttpBufferSize: 1e7 // 10MB
+});
+
+// In-memory storage
+const activeRooms = {};
+const deletedRoomIds = new Set();
 
 function generateRoomId() {
-  let id;
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-  do {
-    id = Array.from({ length: 8 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
-  } while (rooms[id] || deletedRooms.has(id));
-  return id;
+  let result = '';
+  for (let i = 0; i < 8; i++) result += chars[Math.floor(Math.random() * chars.length)];
+  return result;
 }
 
-function deleteRoom(roomId) {
-  if (rooms[roomId]) {
-    io.to(roomId).emit('room-closed', { reason: 'Room has been permanently deleted.' });
-    deletedRooms.add(roomId);
-    delete rooms[roomId];
-  }
-}
+// File upload route (HTTP, not Socket)
+app.post('/upload', upload.single('file'), (req, res) => {
+  if (!req.file) return res.status(400).json({ msg: 'No file uploaded' });
+  
+  const fileUrl = `/uploads/${req.file.filename}`;
+  res.json({ success: true, url: fileUrl, type: req.file.mimetype.startsWith('image') ? 'image' : 'audio' });
+});
 
+// Socket events (same as before + security)
 io.on('connection', (socket) => {
-  let currentRoomId = null;
-  let myNickname = null;
+  console.log(`User connected: ${socket.id}`);
 
-  socket.on('create-room', ({ nickname, expiresInMinutes }) => {
-    const roomId = generateRoomId();
-    const ip = socket.handshake.headers['x-forwarded-for'] || socket.handshake.address;
-
-    rooms[roomId] = {
-      users: [{ nickname, ip, socketId: socket.id }],
-      messages: [],
-      expiresAt: expiresInMinutes ? Date.now() + expiresInMinutes * 60000 : null
-    };
-
-    currentRoomId = roomId;
-    myNickname = nickname;
-    socket.join(roomId);
-
-    socket.emit('room-joined', {
-      roomId,
-      myNickname: nickname,
-      users: rooms[roomId].users,
-      messages: [],
-      isGroup: false
-    });
-
-    if (rooms[roomId].expiresAt) {
-      setTimeout(() => deleteRoom(roomId), rooms[roomId].expiresAt - Date.now());
-    }
+  socket.on('create-room', ({ nickname }) => {
+    if (!nickname || nickname.length > 20) return socket.emit('room-error', { msg: 'Invalid nickname' });
+    let roomId;
+    do { roomId = generateRoomId(); } while (activeRooms[roomId] || deletedRoomIds.has(roomId));
+    activeRooms[roomId] = { users: [], messages: [] };
+    handleJoin(socket, roomId, nickname);
   });
 
   socket.on('join-room', ({ roomId, nickname }) => {
     roomId = roomId.toUpperCase();
-    const ip = socket.handshake.headers['x-forwarded-for'] || socket.handshake.address;
-
-    if (deletedRooms.has(roomId)) {
-      socket.emit('room-closed', { reason: 'Room has been permanently deleted.' });
-      return;
-    }
-    if (!rooms[roomId]) {
-      socket.emit('room-error', { msg: 'Room not found' });
-      return;
-    }
-    if (rooms[roomId].users.length >= 2) {
-      socket.emit('room-error', { msg: 'Room is full (max 2 users)' });
-      return;
-    }
-
-    rooms[roomId].users.push({ nickname, ip, socketId: socket.id });
-    currentRoomId = roomId;
-    myNickname = nickname;
-    socket.join(roomId);
-
-    io.to(roomId).emit('room-joined', {
-      roomId,
-      myNickname: nickname,
-      users: rooms[roomId].users,
-      messages: rooms[roomId].messages,
-      isGroup: false
-    });
+    if (!nickname || nickname.length > 20) return socket.emit('room-error', { msg: 'Invalid nickname' });
+    if (deletedRoomIds.has(roomId)) return socket.emit('room-error', { msg: 'Room Closed - Cannot be reused' });
+    if (!activeRooms[roomId]) return socket.emit('room-error', { msg: 'Room does not exist' });
+    handleJoin(socket, roomId, nickname);
   });
 
-  socket.on('send-message', (data) => {
-    if (!currentRoomId || !rooms[currentRoomId]) return;
-    const msg = {
-      sender: myNickname,
-      text: data.text || '',
-      fileUrl: data.fileUrl || null,
-      fileType: data.fileType || null,
-      ip: socket.handshake.headers['x-forwarded-for'] || socket.handshake.address,
+  socket.on('send-message', ({ text, fileUrl, fileType }) => {
+    const roomId = socket.roomId;
+    if (!roomId || !activeRooms[roomId]) return;
+
+    const room = activeRooms[roomId];
+    const sender = room.users.find(u => u.socketId === socket.id);
+    if (!sender) return;
+
+    // Sanitize text
+    const safeText = text ? text.replace(/<[^>]+>/g, '').trim() : '';
+
+    const message = {
+      sender: sender.nickname,
+      ip: sender.ip,
+      text: safeText || null,
+      fileUrl: fileUrl || null,
+      fileType: fileType || null,
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     };
-    rooms[currentRoomId].messages.push(msg);
-    io.to(currentRoomId).emit('receive-message', msg);
+
+    room.messages.push(message);
+    io.to(roomId).emit('receive-message', message);
   });
 
-  // Typing Indicator
-  socket.on('typing', () => {
-    if (currentRoomId) socket.to(currentRoomId).emit('user-typing', { nickname: myNickname });
-  });
-  socket.on('stop-typing', () => {
-    if (currentRoomId) socket.to(currentRoomId).emit('stop-typing');
-  });
-
-  // 🔥 ONLY Exit Button will delete the room
-  socket.on('exit-room', () => {
-    if (currentRoomId && rooms[currentRoomId]) {
-      deleteRoom(currentRoomId);
-    }
-  });
-
-  // Disconnect / Refresh / Tab Close → Room WILL NOT be deleted
   socket.on('disconnect', () => {
-    if (currentRoomId && rooms[currentRoomId]) {
-      rooms[currentRoomId].users = rooms[currentRoomId].users.filter(u => u.socketId !== socket.id);
-      io.to(currentRoomId).emit('user-left', {
-        users: rooms[currentRoomId].users,
-        message: `${myNickname || 'Someone'} left temporarily`
-      });
+    const roomId = socket.roomId;
+    if (!roomId || !activeRooms[roomId]) return;
+
+    const room = activeRooms[roomId];
+    room.users = room.users.filter(u => u.socketId !== socket.id);
+
+    if (room.users.length > 0) {
+      io.to(roomId).emit('room-closed', { reason: 'The other participant left.<br>Room permanently deleted.' });
     }
+
+    delete activeRooms[roomId];
+    deletedRoomIds.add(roomId);
+    console.log(`Room ${roomId} permanently deleted`);
   });
 });
 
-server.listen(3000, () => {
-  console.log('🚀 IP Chat Name Server running on http://localhost:3000');
+function handleJoin(socket, roomId, nickname) {
+  const ip = socket.handshake.address || 'Unknown';
+  const room = activeRooms[roomId];
+
+  if (room.users.length >= 2) return socket.emit('room-error', { msg: 'Room is full (max 2 users)' });
+
+  const user = { socketId: socket.id, ip, nickname };
+  room.users.push(user);
+  socket.roomId = roomId;
+  socket.join(roomId);
+
+  socket.emit('room-joined', {
+    roomId, myNickname: nickname, myIP: ip, users: room.users, messages: room.messages
+  });
+
+  if (room.users.length > 1) {
+    socket.to(roomId).emit('user-joined', { nickname, ip, users: room.users });
+  }
+}
+
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, '0.0.0.0', () => {
+  console.log(`✅ Secure IP Chat Name running on port ${PORT}`);
 });
