@@ -579,7 +579,36 @@ body {
     background: var(--primary);
     border-radius: 20px;
                                 }
-/* 📱 WHATSAPP STYLE MOBILE UI */
+/* =========================
+   🔥 FINAL UI FIX PATCH
+   (Add at END of CSS file)
+========================= */
+
+/* ✅ Header: show user name instead of app name */
+#chat-user-name {
+    font-size: 1.2rem;
+    font-weight: 700;
+    display: none;
+}
+
+#app-title.hidden {
+    display: none !important;
+}
+
+/* ✅ Input shape fix */
+#message-input {
+    border-radius: 12px !important;
+}
+
+/* ✅ Buttons square (override old round) */
+.send-btn,
+.attach-btn {
+    border-radius: 10px !important;
+}
+
+/* =========================
+   📱 MOBILE WHATSAPP FIX
+========================= */
 @media (max-width: 768px) {
 
     body {
@@ -588,33 +617,51 @@ body {
     }
 
     .chat-layout {
-        height: 100vh;
         flex-direction: column;
+        height: 100vh;
     }
 
     .chat-main {
         flex: 1;
         display: flex;
         flex-direction: column;
-        height: 100%;
     }
 
+    /* ✅ Header clean */
+    .logo-icon {
+        display: none !important;
+    }
+
+    #app-title {
+        display: none !important;
+    }
+
+    #chat-user-name {
+        display: block !important;
+    }
+
+    .room-info {
+        display: none !important;
+    }
+
+    /* ✅ Messages area */
     .messages-container {
         flex: 1;
         overflow-y: auto;
-        padding: 10px;
+        padding: 10px !important;
     }
 
     .message {
-        max-width: 85%;
+        max-width: 85% !important;
+        padding: 10px 14px !important;
         font-size: 0.95rem;
     }
 
-    /* 🔥 Input always bottom */
+    /* ✅ Input always bottom */
     .message-input-area {
         position: sticky;
         bottom: 0;
-        padding: 10px;
+        padding: 10px !important;
         background: #0c0c22;
     }
 
@@ -624,36 +671,20 @@ body {
 
     #message-input {
         height: 42px;
-        padding: 10px 14px;
         font-size: 0.95rem;
     }
 
-    /* 🔥 WhatsApp style buttons */
+    /* ✅ Buttons proper size */
     .send-btn,
     .attach-btn {
-        width: 42px;
-        height: 42px;
-        border-radius: 10px;
+        width: 42px !important;
+        height: 42px !important;
+        border-radius: 10px !important;
         font-size: 1.1rem;
     }
 
-    /* ❌ Remove extra spacing */
-    .home-container,
-    .card {
-        padding: 1.2rem;
-    }
-
-    /* Header compact */
-    .header {
-        padding: 0.6rem 1rem;
-    }
-
-    .room-info {
-        display: none; /* WhatsApp style clean header */
-    }
-
-    /* Optional: hide participants for real WhatsApp feel */
+    /* ✅ Hide sidebar */
     .participants-sidebar {
-        display: none;
+        display: none !important;
     }
     }
