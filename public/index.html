@@ -8,17 +8,24 @@
     <script src="/socket.io/socket.io.js"></script>
 </head>
 <body>
-    <header class="header">
-        <div class="logo">
-            <span class="logo-icon">🔌</span>
-            <h1>IP Chat Name</h1>
-        </div>
-        <div id="header-room-info" class="room-info hidden">
-            <span class="room-label">Room</span>
-            <span id="room-id-display" class="room-id"></span>
-            <button onclick="copyRoomLink()" class="copy-btn">📋 Share</button>
-        </div>
-    </header>
+<header class="header">
+    <div class="logo">
+        <span class="logo-icon">🔌</span>
+
+        <!-- Home title -->
+        <h1 id="app-title">IP Chat Name</h1>
+
+        <!-- Chat user name -->
+        <h1 id="chat-user-name" class="hidden">Waiting...</h1>
+    </div>
+
+    <!-- Room info (optional) -->
+    <div id="header-room-info" class="room-info hidden">
+        <span class="room-label">Room</span>
+        <span id="room-id-display" class="room-id"></span>
+        <button onclick="copyRoomLink()" class="copy-btn">📋 Share</button>
+    </div>
+</header>
 
     <!-- Home View -->
     <div id="home-view" class="view active">
