@@ -579,84 +579,81 @@ body {
     background: var(--primary);
     border-radius: 20px;
                                 }
-/* 📱 MOBILE RESPONSIVE FIX */
+/* 📱 WHATSAPP STYLE MOBILE UI */
 @media (max-width: 768px) {
 
-    .header {
-        padding: 0.8rem 1rem;
+    body {
+        height: 100vh;
+        overflow: hidden;
     }
 
-    .logo {
-        font-size: 1.2rem;
-    }
-
-    .logo-icon {
-        font-size: 1.8rem;
-    }
-
-    .room-info {
-        padding: 6px 12px;
-        gap: 8px;
-    }
-
-    .room-id {
-        font-size: 0.9rem;
-        letter-spacing: 1px;
-    }
-
-    /* Layout stack */
     .chat-layout {
+        height: 100vh;
         flex-direction: column;
-        height: calc(100vh - 60px);
     }
 
-    /* ✅ Sidebar visible (fix) */
-    .participants-sidebar {
-        width: 100%;
-        order: 2;
-        border-right: none;
-        border-top: 1px solid rgba(0, 245, 255, 0.15);
+    .chat-main {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        height: 100%;
     }
 
-    /* Messages full width */
     .messages-container {
-        padding: 1rem;
+        flex: 1;
+        overflow-y: auto;
+        padding: 10px;
     }
 
     .message {
-        max-width: 95%;
-        padding: 12px 16px;
+        max-width: 85%;
+        font-size: 0.95rem;
     }
 
-    /* Input area */
+    /* 🔥 Input always bottom */
     .message-input-area {
-        padding: 1rem;
+        position: sticky;
+        bottom: 0;
+        padding: 10px;
+        background: #0c0c22;
+    }
+
+    #message-form {
+        gap: 8px;
     }
 
     #message-input {
-        padding: 14px 18px;
-        font-size: 1rem;
+        height: 42px;
+        padding: 10px 14px;
+        font-size: 0.95rem;
     }
 
-    /* ✅ Square buttons */
+    /* 🔥 WhatsApp style buttons */
     .send-btn,
     .attach-btn {
-        width: 48px;
-        height: 48px;
-        font-size: 1.2rem;
-        border-radius: 12px; /* 👈 square */
+        width: 42px;
+        height: 42px;
+        border-radius: 10px;
+        font-size: 1.1rem;
     }
 
-    /* Hero text fix */
-    .hero-title {
-        font-size: 2rem;
-    }
-
-    .hero-subtitle {
-        font-size: 1rem;
-    }
-
+    /* ❌ Remove extra spacing */
+    .home-container,
     .card {
-        padding: 2rem 1.5rem;
+        padding: 1.2rem;
     }
-}
+
+    /* Header compact */
+    .header {
+        padding: 0.6rem 1rem;
+    }
+
+    .room-info {
+        display: none; /* WhatsApp style clean header */
+    }
+
+    /* Optional: hide participants for real WhatsApp feel */
+    .participants-sidebar {
+        display: none;
+    }
+    }
