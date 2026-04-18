@@ -1,7 +1,7 @@
 {
   "name": "ip-chat-name",
   "version": "1.0.0",
-  "description": "Real-time Private Chat with IP tracking",
+  "description": "Private 2-user chat with IP tracking - Only Exit Button deletes room",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
