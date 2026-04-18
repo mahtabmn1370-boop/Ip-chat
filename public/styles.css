@@ -612,7 +612,10 @@ body {
 
     /* Sidebar hide */
     .participants-sidebar {
-        display: none;
+    width: 100%;
+    order: 2;
+    border-right: none;
+    border-top: 1px solid rgba(0, 245, 255, 0.15);
     }
 
     /* Messages full width */
