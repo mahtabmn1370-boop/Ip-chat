@@ -1,4 +1,4 @@
-// public/script.js - Secure version with media support (FIXED)
+// public/script.js - Secure version with media support (FINAL FIXED)
 let socket;
 let currentRoomId = null;
 let myNickname = '';
@@ -30,12 +30,17 @@ function setupSocketListeners() {
         switchToChatView();
         renderParticipants();
         renderMessages();
-        if (participants.length === 2) document.getElementById('waiting-banner').classList.add('hidden');
+        updateHeaderName(); // ✅ NEW
+
+        if (participants.length === 2) {
+            document.getElementById('waiting-banner').classList.add('hidden');
+        }
     });
 
     socket.on('user-joined', (data) => {
         participants = data.users;
         renderParticipants();
+        updateHeaderName(); // ✅ NEW
         document.getElementById('waiting-banner').classList.add('hidden');
     });
 
@@ -53,6 +58,24 @@ function setupSocketListeners() {
     socket.on('room-error', (data) => {
         showToast(`❌ ${data.msg}`);
     });
+}
+
+// ✅ NEW FUNCTION (WhatsApp style name update)
+function updateHeaderName() {
+    const appTitle = document.getElementById('app-title');
+    const chatUserName = document.getElementById('chat-user-name');
+
+    if (!appTitle || !chatUserName) return;
+
+    const otherUser = participants.find(u => u.nickname !== myNickname);
+
+    if (otherUser) {
+        appTitle.classList.add('hidden');
+        chatUserName.classList.remove('hidden');
+        chatUserName.textContent = otherUser.nickname;
+    } else {
+        chatUserName.textContent = "Waiting...";
+    }
 }
 
 function createRoom() {
@@ -90,6 +113,8 @@ function switchToChatView() {
     document.getElementById('chat-view').classList.remove('hidden');
     document.getElementById('header-room-info').classList.remove('hidden');
     document.getElementById('room-id-display').textContent = currentRoomId;
+
+    updateHeaderName(); // ✅ NEW
 }
 
 function renderParticipants() {
@@ -102,7 +127,6 @@ function renderParticipants() {
         const div = document.createElement('div');
         div.className = `participant ${isMe ? 'me' : ''}`;
 
-        // SAFE rendering (XSS fix)
         const nameDiv = document.createElement('div');
         nameDiv.className = 'participant-name';
         nameDiv.textContent = isMe ? '👤 You' : user.nickname;
@@ -156,7 +180,7 @@ function renderMessages() {
 
         if (msg.text) {
             const textDiv = document.createElement('div');
-            textDiv.textContent = msg.text; // SAFE
+            textDiv.textContent = msg.text;
             div.appendChild(textDiv);
         }
 
@@ -258,7 +282,6 @@ async function startVoiceRecording() {
     }
 }
 
-// FIXED: safer click detection (still same behavior)
 document.addEventListener('click', (e) => {
     if (
         e.target &&
@@ -287,6 +310,11 @@ function goBackToHome() {
     document.getElementById('chat-view').classList.add('hidden');
     document.getElementById('home-view').classList.remove('hidden');
     document.getElementById('header-room-info').classList.add('hidden');
+
+    // ✅ RESET HEADER
+    document.getElementById('app-title').classList.remove('hidden');
+    document.getElementById('chat-user-name').classList.add('hidden');
+
     currentRoomId = null;
 }
 
@@ -295,4 +323,4 @@ function showToast(msg, timeout = 3000) {
     toast.textContent = msg;
     toast.classList.remove('hidden');
     setTimeout(() => toast.classList.add('hidden'), timeout);
-        }
+}
