@@ -1,11 +1,18 @@
-// public/script.js - Complete with typing, theme toggle, Android fit
-let socket, currentRoomId = null, myNickname = '', participants = [], messages = [], isTyping = false;
+// public/script.js - Secure version with media support (FIXED)
+let socket;
+let currentRoomId = null;
+let myNickname = '';
+let participants = [];
+let messages = [];
+let mediaRecorder = null;
+let audioChunks = [];
 
 document.addEventListener('DOMContentLoaded', () => {
     socket = io();
+
     setupSocketListeners();
 
-    const params = new URLSearchParams(location.search);
+    const params = new URLSearchParams(window.location.search);
     if (params.has('room')) {
         currentRoomId = params.get('room').toUpperCase();
         showJoinModal();
@@ -13,51 +20,53 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function setupSocketListeners() {
-    socket.on('room-joined', data => {
+    socket.on('room-joined', (data) => {
         currentRoomId = data.roomId;
         myNickname = data.myNickname;
         participants = data.users;
         messages = data.messages || [];
+
         history.pushState({}, '', `?room=${currentRoomId}`);
         switchToChatView();
         renderParticipants();
         renderMessages();
+        if (participants.length === 2) document.getElementById('waiting-banner').classList.add('hidden');
     });
 
-    socket.on('user-joined', data => { participants = data.users; renderParticipants(); });
-    socket.on('user-left', data => { participants = data.users; renderParticipants(); showToast(data.message); });
+    socket.on('user-joined', (data) => {
+        participants = data.users;
+        renderParticipants();
+        document.getElementById('waiting-banner').classList.add('hidden');
+    });
 
-    socket.on('receive-message', msg => {
+    socket.on('receive-message', (msg) => {
         messages.push(msg);
         renderMessages();
+        const container = document.getElementById('chat-messages');
+        container.scrollTop = container.scrollHeight;
     });
 
-    // Typing
-    socket.on('user-typing', data => {
-        if (data.nickname !== myNickname) {
-            document.getElementById('typing-name').textContent = data.nickname;
-            document.getElementById('typing-indicator').classList.remove('hidden');
-        }
-    });
-    socket.on('stop-typing', () => {
-        document.getElementById('typing-indicator').classList.add('hidden');
+    socket.on('room-closed', (data) => {
+        showClosedModal(data.reason);
     });
 
-    socket.on('room-closed', data => showClosedModal(data.reason));
-    socket.on('room-error', data => showToast(`❌ ${data.msg}`));
+    socket.on('room-error', (data) => {
+        showToast(`❌ ${data.msg}`);
+    });
 }
 
 function createRoom() {
     const nickname = document.getElementById('nickname-input').value.trim();
-    if (!nickname) return showToast('Enter nickname');
-    const expires = parseInt(document.getElementById('expiry-time').value);
-    socket.emit('create-room', { nickname, expiresInMinutes: expires });
+    if (!nickname) return showToast('Please enter a nickname');
+    socket.emit('create-room', { nickname });
 }
 
 function joinRoomFromHome() {
     const roomId = document.getElementById('room-code-input').value.trim().toUpperCase();
     const nickname = document.getElementById('nickname-input').value.trim();
-    if (!roomId || !nickname) return showToast('Enter Room ID and nickname');
+    if (!roomId) return showToast('Enter Room ID');
+    if (!nickname) return showToast('Enter nickname');
+    currentRoomId = roomId;
     socket.emit('join-room', { roomId, nickname });
 }
 
@@ -72,11 +81,13 @@ function confirmJoinFromModal() {
     socket.emit('join-room', { roomId: currentRoomId, nickname });
 }
 
-function cancelJoinModal() { document.getElementById('join-modal').classList.add('hidden'); }
+function cancelJoinModal() {
+    document.getElementById('join-modal').classList.add('hidden');
+}
 
 function switchToChatView() {
     document.getElementById('home-view').classList.add('hidden');
-    document.getElementById('chat-view').classList.add('active');
+    document.getElementById('chat-view').classList.remove('hidden');
     document.getElementById('header-room-info').classList.remove('hidden');
     document.getElementById('room-id-display').textContent = currentRoomId;
 }
@@ -87,12 +98,25 @@ function renderParticipants() {
     document.getElementById('participant-count').textContent = `${participants.length}/2`;
 
     participants.forEach(user => {
+        const isMe = user.nickname === myNickname;
         const div = document.createElement('div');
-        div.className = `participant ${user.nickname === myNickname ? 'me' : ''}`;
-        div.innerHTML = `
-            <div class="participant-name">${user.nickname === myNickname ? '👤 You' : user.nickname}</div>
-            <div class="participant-ip">IP: ${user.ip}</div>
-        `;
+        div.className = `participant ${isMe ? 'me' : ''}`;
+
+        // SAFE rendering (XSS fix)
+        const nameDiv = document.createElement('div');
+        nameDiv.className = 'participant-name';
+        nameDiv.textContent = isMe ? '👤 You' : user.nickname;
+
+        const ipDiv = document.createElement('div');
+        ipDiv.className = 'participant-ip';
+        ipDiv.textContent = `IP: ${user.ip}`;
+
+        const infoDiv = document.createElement('div');
+        infoDiv.className = 'participant-info';
+        infoDiv.appendChild(nameDiv);
+        infoDiv.appendChild(ipDiv);
+
+        div.appendChild(infoDiv);
         container.appendChild(div);
     });
 }
@@ -100,7 +124,7 @@ function renderParticipants() {
 function renderMessages() {
     const container = document.getElementById('chat-messages');
     const empty = document.getElementById('empty-chat');
-    empty.style.display = messages.length ? 'none' : 'flex';
+    if (messages.length > 0) empty.style.display = 'none';
 
     container.querySelectorAll('.message').forEach(el => el.remove());
 
@@ -108,22 +132,52 @@ function renderMessages() {
         const isMine = msg.sender === myNickname;
         const div = document.createElement('div');
         div.className = `message ${isMine ? 'you' : 'other'}`;
-        let html = `
-            <div class="message-header">
-                <span class="message-sender">${isMine ? 'You' : msg.sender}</span>
-                <span class="message-ip">• ${msg.ip}</span>
-                <span class="message-time">${msg.time}</span>
-            </div>
-        `;
-        if (msg.text) html += `<div>${msg.text}</div>`;
-        if (msg.fileUrl) {
-            if (msg.fileType === 'image') html += `<img src="${msg.fileUrl}" class="chat-image">`;
-            else if (msg.fileType === 'audio' || msg.fileType === 'video') 
-                html += `<\( {msg.fileType} controls src=" \){msg.fileUrl}" class="chat-media"></${msg.fileType}>`;
+
+        const header = document.createElement('div');
+        header.className = 'message-header';
+
+        const sender = document.createElement('span');
+        sender.className = 'message-sender';
+        sender.textContent = isMine ? 'You' : msg.sender;
+
+        const ip = document.createElement('span');
+        ip.className = 'message-ip';
+        ip.textContent = `• ${msg.ip}`;
+
+        const time = document.createElement('span');
+        time.className = 'message-time';
+        time.textContent = msg.time;
+
+        header.appendChild(sender);
+        header.appendChild(ip);
+        header.appendChild(time);
+
+        div.appendChild(header);
+
+        if (msg.text) {
+            const textDiv = document.createElement('div');
+            textDiv.textContent = msg.text; // SAFE
+            div.appendChild(textDiv);
         }
-        div.innerHTML = html;
+
+        if (msg.fileUrl) {
+            if (msg.fileType === 'image') {
+                const img = document.createElement('img');
+                img.src = msg.fileUrl;
+                img.className = 'chat-image';
+                div.appendChild(img);
+            } else {
+                const audio = document.createElement('audio');
+                audio.controls = true;
+                audio.src = msg.fileUrl;
+                audio.className = 'chat-audio';
+                div.appendChild(audio);
+            }
+        }
+
         container.appendChild(div);
     });
+
     container.scrollTop = container.scrollHeight;
 }
 
@@ -134,67 +188,106 @@ function sendMessage(e) {
     if (text) {
         socket.emit('send-message', { text });
         input.value = '';
-        socket.emit('stop-typing');
-        isTyping = false;
     }
 }
 
-function handleTyping(e) {
-    if (!currentRoomId) return;
-    if (e.key === 'Enter') return;
-    if (!isTyping) {
-        isTyping = true;
-        socket.emit('typing');
-    }
-    clearTimeout(window.typingTimeout);
-    window.typingTimeout = setTimeout(() => {
-        socket.emit('stop-typing');
-        isTyping = false;
-    }, 1500);
+function triggerImageUpload() {
+    document.getElementById('file-upload').click();
 }
-
-function triggerFileUpload() { document.getElementById('file-upload').click(); }
 
 function handleFileSelect(e) {
     const file = e.target.files[0];
     if (!file) return;
+
     const formData = new FormData();
     formData.append('file', file);
-    fetch('/upload', { method: 'POST', body: formData })
-        .then(res => res.json())
-        .then(data => {
-            if (data.success) socket.emit('send-message', { fileUrl: data.url, fileType: data.type });
-        });
+
+    fetch('/upload', {
+        method: 'POST',
+        body: formData
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            socket.emit('send-message', {
+                text: '',
+                fileUrl: data.url,
+                fileType: data.type
+            });
+        }
+    })
+    .catch(() => showToast('Upload failed'));
 }
 
-function exitRoom() {
-    if (confirm("Exit room? This will permanently delete the room for everyone.")) {
-        socket.emit('exit-room');
-        goBackToHome();
+async function startVoiceRecording() {
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaRecorder = new MediaRecorder(stream);
+        audioChunks = [];
+
+        mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+        mediaRecorder.onstop = () => {
+            const audioBlob = new Blob(audioChunks, { type: 'audio/ogg' });
+            const formData = new FormData();
+            formData.append('file', audioBlob, 'voice.ogg');
+
+            fetch('/upload', { method: 'POST', body: formData })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        socket.emit('send-message', {
+                            text: '',
+                            fileUrl: data.url,
+                            fileType: 'audio'
+                        });
+                    }
+                });
+
+            stream.getTracks().forEach(track => track.stop());
+        };
+
+        mediaRecorder.start();
+        showToast('🎤 Recording... Click again to stop', 15000);
+
+        setTimeout(() => {
+            if (mediaRecorder && mediaRecorder.state === "recording") mediaRecorder.stop();
+        }, 30000);
+
+    } catch (err) {
+        showToast('Microphone access denied or not available');
     }
 }
 
+// FIXED: safer click detection (still same behavior)
+document.addEventListener('click', (e) => {
+    if (
+        e.target &&
+        e.target.textContent &&
+        e.target.textContent.includes('🎤') &&
+        mediaRecorder &&
+        mediaRecorder.state === "recording"
+    ) {
+        mediaRecorder.stop();
+    }
+});
+
 function copyRoomLink() {
-    const link = `\( {window.location.origin}?room= \){currentRoomId}`;
+    const link = `${window.location.origin}?room=${currentRoomId}`;
     navigator.clipboard.writeText(link).then(() => showToast('✅ Link copied!'));
 }
 
 function showClosedModal(reason) {
-    document.getElementById('closed-reason').innerHTML = reason;
+    document.getElementById('closed-reason').textContent =
+        reason || 'Room has been permanently deleted.';
     document.getElementById('closed-modal').classList.remove('hidden');
 }
 
 function goBackToHome() {
     document.getElementById('closed-modal').classList.add('hidden');
-    document.getElementById('chat-view').classList.remove('active');
+    document.getElementById('chat-view').classList.add('hidden');
     document.getElementById('home-view').classList.remove('hidden');
     document.getElementById('header-room-info').classList.add('hidden');
     currentRoomId = null;
-}
-
-function toggleTheme() {
-    const body = document.body;
-    body.dataset.theme = body.dataset.theme === 'dark' ? 'light' : 'dark';
 }
 
 function showToast(msg, timeout = 3000) {
@@ -202,4 +295,4 @@ function showToast(msg, timeout = 3000) {
     toast.textContent = msg;
     toast.classList.remove('hidden');
     setTimeout(() => toast.classList.add('hidden'), timeout);
-}
+        }
