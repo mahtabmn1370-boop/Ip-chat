@@ -8,7 +8,6 @@
     <script src="/socket.io/socket.io.js"></script>
 </head>
 <body data-theme="dark">
-    <!-- Header -->
     <header class="header">
         <div class="logo">
             <span class="logo-icon">🔌</span>
@@ -20,19 +19,18 @@
                 <span class="room-label">Room</span>
                 <span id="room-id-display" class="room-id"></span>
                 <button onclick="copyRoomLink()" class="copy-btn">📋 Share</button>
-                <button onclick="exitRoom()" class="exit-btn">Exit</button>
+                <button onclick="exitRoom()" class="exit-btn">Exit Room</button>
             </div>
         </div>
     </header>
 
     <!-- Home View -->
     <div id="home-view" class="view active">
-        <!-- Same as your original HTML (I kept it clean) -->
         <div class="home-container">
             <div class="hero">
-                <div class="hero-badge">PRIVATE • SECURE • IP TRACKED</div>
+                <div class="hero-badge">PRIVATE • 2 USERS • IP TRACKED</div>
                 <h2 class="hero-title">Chat That You Control</h2>
-                <p class="hero-subtitle">Create private room • 2 users max • Auto deletes on exit</p>
+                <p class="hero-subtitle">Create private room • Only Exit button deletes room</p>
             </div>
 
             <div class="card">
@@ -45,7 +43,7 @@
                     <button onclick="createRoom()" class="btn-primary">Create Private Room (2 users)</button>
                 </div>
 
-                <div class="expiry-selector" id="expiry-selector">
+                <div class="expiry-selector">
                     <label>Keep room open for</label>
                     <select id="expiry-time">
                         <option value="30" selected>30 minutes</option>
@@ -78,18 +76,18 @@
             <div class="chat-main">
                 <div id="chat-messages" class="messages-container">
                     <div id="empty-chat" class="empty-state">
-                        <h3>Start chatting...</h3>
+                        <h3>Start the conversation</h3>
                     </div>
                 </div>
 
-                <!-- Typing Indicator -->
                 <div id="typing-indicator" class="typing-indicator hidden">
                     <span id="typing-name"></span> is typing...
                 </div>
 
                 <div class="message-input-area">
                     <form id="message-form" onsubmit="sendMessage(event)">
-                        <input type="text" id="message-input" placeholder="Type a message..." autocomplete="off">
+                        <input type="text" id="message-input" placeholder="Type a message..." autocomplete="off"
+                               onkeyup="handleTyping(event)">
                         <button type="button" onclick="triggerFileUpload()" class="attach-btn">📎</button>
                         <button type="submit" class="send-btn">Send</button>
                     </form>
@@ -124,4 +122,4 @@
 
     <script src="script.js"></script>
 </body>
-                    </html>
+                                                        </html>
